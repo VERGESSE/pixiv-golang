@@ -60,9 +60,6 @@ var bookmarks int
 // 向文件写入缓存的任务通道
 var cacheChan = make(chan string, 20)
 
-//记录任务是否结束,0代表未结束，1代表已经结束,使用原子变量保证可见性
-var isDone int32 = 0
-
 // 分发下载任务
 func (p *Pixivic) CrawUrl() {
 
