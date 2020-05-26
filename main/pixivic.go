@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"pixivic/urlcrawler"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -27,10 +28,11 @@ func main() {
 	// 加载缓存，防止下载之前的重复图片
 	getOld(memo)
 
-	fmt.Println("请输入起始地址(起始地址请访问:https://pixivic.com)")
+	fmt.Println("请输入起始地址(起始地址请访问:https://pixivic.com)以及最低收藏数(默认2000)")
 	fmt.Println("选择一张你喜欢的图片，点进去并复制地址")
-	fmt.Println("例如:https://pixivic.com/illusts/76701981?VNK=35fda4b2")
-	fmt.Println("或者直接输入起始图片的id,例如: 76701981")
+	fmt.Println("例如:https://pixivic.com/illusts/76701981?VNK=35fda4b2?>2000")
+	fmt.Println("或者直接输入起始图片的id,例如: 76701981?>2000")
+	fmt.Println("或者直接输入图片ID:76701981,默认爬取收藏大于2000的图片")
 	input := bufio.NewScanner(os.Stdin)
 	var originUrl string
 	if input.Scan() {
@@ -39,6 +41,14 @@ func main() {
 	// 根据输入获取起始地址
 	originId := strings.Split(originUrl, "/")
 	originId = strings.Split(originId[len(originId)-1], "?")
+	// 根据输入获取最低点赞数
+	split := strings.Split(originUrl, ">")
+	if len(split) > 1 {
+		bookmarks := split[1]
+		pixivic.Bookmarks, _ = strconv.Atoi(bookmarks)
+	} else {
+		pixivic.Bookmarks = 2000
+	}
 
 	// 设置输入任意字符退出,如回车
 	go func() {

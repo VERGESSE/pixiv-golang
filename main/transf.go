@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -58,4 +59,5 @@ func transferFile(dst, src string) {
 
 	waitGroup.Done()
 	<- fileChan
+	fmt.Println(src, " 转移完成！")
 }
