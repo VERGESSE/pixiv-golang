@@ -158,12 +158,12 @@ func downloadImg(imgId string) bool {
 	radio := float64(data.Width) / float64(data.Height)
 	// 根据图片的尺寸信息确定图片归属
 	bathPath := "images/"
-	if data.Width >= 1800 && (radio < 2.33 || radio > 1.52) {
+	if data.Width >= 1800 && (radio < 2.33 && radio > 1.52) {
 		bathPath += "横屏/"
-	} else if data.Height >= 1800 && (radio > 0.46 || radio < 0.77) {
+	} else if data.Height >= 1800 && (radio > 0.46 && radio < 0.77) {
 		bathPath += "竖屏/"
 	} else if data.Width >= 1800 || data.Height >= 1800 {
-		bathPath += "长图"
+		bathPath += "长图-方图/"
 	} else {
 		bathPath += "小图/"
 	}
