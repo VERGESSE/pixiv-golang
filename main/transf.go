@@ -23,7 +23,7 @@ func main() {
 
 	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/横屏")
 	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/竖屏")
-	handTask("H:/wallpaper/P站壁纸/精品小图，手机可用", "images/长图-方图")
+	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/长图-方图")
 	handTask("H:/wallpaper/P站壁纸/精品小图，手机可用", "images/小图")
 
 	// 等待转移结束

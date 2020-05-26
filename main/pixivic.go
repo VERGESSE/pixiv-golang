@@ -14,12 +14,12 @@ import (
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	idChan := make(chan string, 10)
+	idChan := make(chan string, 20)
 	countdown := sync.WaitGroup{}
 	done := make(chan bool)
 	memo := make(map[string]bool)
 	pixivic := &urlcrawler.Pixivic{
-		GoroutinePool: make(chan struct{}, 20),   // 设置协程数量
+		GoroutinePool: make(chan struct{}, 30),   // 设置协程数量
 		IdChan: idChan,							  // 存储图片id的通道
 		CountDown: &countdown,                    // 控制程序平稳结束的栅栏
 		Memo: memo,                               // 缓存，防止下载重复图片
@@ -57,8 +57,8 @@ func main() {
 		done <- true
 	}()
 
-	// 启动根据输入Id，加载相关图片的协程
-	go pixivic.GetRelevanceUrls(originId[0])
+	// 启动根据输入Id，加载相关图片的协程, 并递归调用一层
+	go pixivic.GetRelevanceUrls(originId[0], true)
 	// 开启图片下载任务
 	pixivic.CrawUrl()
 
@@ -69,6 +69,7 @@ func main() {
 
 // 获取之前下载的缓存的函数, images/memos 缓存了曾经所有下载过的图片的id，以空格分隔
 func getOld(memo map[string]bool) {
+	os.MkdirAll("images",0644)
 	memoFile, _ := os.OpenFile("images/memos",
 		os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	reader := bufio.NewReader(memoFile)
@@ -81,30 +82,3 @@ func getOld(memo map[string]bool) {
 	}
 	memoFile.Close()
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
