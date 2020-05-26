@@ -1,6 +1,6 @@
 /*
 	转移所有图片到一个统一文件夹的工具
- */
+*/
 package main
 
 import (
@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-var(
+var (
 	// 控制程序结束栅栏
 	waitGroup = sync.WaitGroup{}
 	// 文件转移线程池
@@ -21,8 +21,9 @@ var(
 
 func main() {
 
-	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/长图")
-	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/宽图")
+	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/横屏")
+	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/竖屏")
+	handTask("H:/wallpaper/P站壁纸/精品小图，手机可用", "images/长图")
 	handTask("H:/wallpaper/P站壁纸/精品小图，手机可用", "images/小图")
 
 	// 等待转移结束
@@ -45,11 +46,11 @@ func handTask(dstDir, srcDir string) {
 func transferFile(dst, src string) {
 	fileChan <- struct{}{}
 
-	dstFile, _ := os.OpenFile(dst, os.O_RDWR|os.O_CREATE,0644)
+	dstFile, _ := os.OpenFile(dst, os.O_RDWR|os.O_CREATE, 0644)
 	srcFile, _ := os.Open(src)
 
 	_, err := io.Copy(dstFile, srcFile)
-	if err != nil{
+	if err != nil {
 		log.Println(err)
 	}
 	srcFile.Close()
@@ -58,6 +59,6 @@ func transferFile(dst, src string) {
 	os.Remove(src)
 
 	waitGroup.Done()
-	<- fileChan
+	<-fileChan
 	fmt.Println(src, " 转移完成！")
 }
