@@ -14,7 +14,7 @@ import (
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	idChan := make(chan string, 20)
+	idChan := make(chan string, 10)
 	countdown := sync.WaitGroup{}
 	done := make(chan bool)
 	memo := make(map[string]bool)
@@ -28,11 +28,11 @@ func main() {
 	// 加载缓存，防止下载之前的重复图片
 	getOld(memo)
 
-	fmt.Println("请输入起始地址(起始地址请访问:https://pixivic.com)以及最低收藏数(默认2000)")
+	fmt.Println("请输入起始地址(起始地址请访问:https://pixivic.com)以及最低收藏数(默认800)")
 	fmt.Println("选择一张你喜欢的图片，点进去并复制地址")
 	fmt.Println("例如:https://pixivic.com/illusts/76701981?VNK=35fda4b2?>2000")
 	fmt.Println("或者直接输入起始图片的id,例如: 76701981?>2000")
-	fmt.Println("或者直接输入图片ID:76701981,默认爬取收藏大于2000的图片")
+	fmt.Println("或者直接输入图片ID:76701981,默认爬取收藏大于800的图片")
 	input := bufio.NewScanner(os.Stdin)
 	var originUrl string
 	if input.Scan() {
@@ -47,7 +47,7 @@ func main() {
 		bookmarks := split[1]
 		pixivic.Bookmarks, _ = strconv.Atoi(bookmarks)
 	} else {
-		pixivic.Bookmarks = 2000
+		pixivic.Bookmarks = 800
 	}
 
 	// 设置输入任意字符退出,如回车
@@ -58,7 +58,7 @@ func main() {
 	}()
 
 	// 启动根据输入Id，加载相关图片的协程, 并递归调用一层
-	go pixivic.GetRelevanceUrls(originId[0], true)
+	go pixivic.GetRelevanceUrls(originId[0], true, 5)
 	// 开启图片下载任务
 	pixivic.CrawUrl()
 

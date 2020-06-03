@@ -214,10 +214,14 @@ func addCache() {
 	file.Close()
 }
 
+// 五个生产者
+var urlChan = make(chan struct{}, 5)
+
 // 获取图片Id的相关图片
-func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool) {
+func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool, index int) {
+	urlChan <- struct{}{}
 	p.IdChan <- imgId
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= 3; i++ {
 		originUrl := "https://api.pixivic.com/illusts/" +
 			imgId + "/related?page=" + strconv.Itoa(i) + "&pageSize=50"
 
@@ -233,12 +237,16 @@ func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool) {
 		for _, id := range relevancePage.Data {
 			curId := strconv.Itoa(id.Id)
 			p.IdChan <- curId
-			if recursion {
-				// 只递归爬取一层
-				go p.GetRelevanceUrls(curId, false)
+			if index > 0 {
+				// 只递归爬取index层
+				go p.GetRelevanceUrls(curId, false, index-1)
 			}
 		}
 	}
+	<-urlChan
+	//if recursion {
+	//	close(p.IdChan)
+	//}
 }
 
 var lock sync.Mutex
