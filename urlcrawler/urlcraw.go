@@ -165,9 +165,9 @@ func downloadImg(imgId string) bool {
 	radio := float64(data.Width) / float64(data.Height)
 	// 根据图片的尺寸信息确定图片归属
 	bathPath := "images/"
-	if data.Width >= 1800 && (radio < 2.33 && radio > 1.52) {
+	if data.Width >= 1800 && (radio < 2.33 && radio > 1.4) {
 		bathPath += "横屏/"
-	} else if data.Height >= 1800 && (radio > 0.46 && radio < 0.77) {
+	} else if data.Height >= 1800 && (radio > 0.46 && radio < 0.8) {
 		bathPath += "竖屏/"
 	} else if data.Width >= 1800 || data.Height >= 1800 {
 		bathPath += "长图-方图/"
@@ -217,6 +217,9 @@ func addCache() {
 // 五个生产者
 var urlChan = make(chan struct{}, 5)
 
+// 记录缓存的层爬取过的主页
+var pageCache = make(map[string]bool)
+
 // 获取图片Id的相关图片
 func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool, index int) {
 	urlChan <- struct{}{}
@@ -237,16 +240,20 @@ func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool, index int) {
 		for _, id := range relevancePage.Data {
 			curId := strconv.Itoa(id.Id)
 			p.IdChan <- curId
-			if index > 0 {
+			if index == 0 {
+				recursion = false
+			}
+			if !pageCache[curId] {
+				pageCache[curId] = true
 				// 只递归爬取index层
-				go p.GetRelevanceUrls(curId, false, index-1)
+				go p.GetRelevanceUrls(curId, recursion, index-1)
 			}
 		}
 	}
 	<-urlChan
-	//if recursion {
-	//	close(p.IdChan)
-	//}
+	if !recursion {
+		close(p.IdChan)
+	}
 }
 
 var lock sync.Mutex

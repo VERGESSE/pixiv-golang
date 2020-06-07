@@ -58,7 +58,7 @@ func main() {
 	}()
 
 	// 启动根据输入Id，加载相关图片的协程, 并递归调用一层
-	go pixivic.GetRelevanceUrls(originId[0], true, 5)
+	go pixivic.GetRelevanceUrls(originId[0], true, 6)
 	// 开启图片下载任务
 	pixivic.CrawUrl()
 
