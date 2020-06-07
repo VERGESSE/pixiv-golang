@@ -57,6 +57,9 @@ type relevancePage struct {
 // 最低收藏数
 var bookmarks int
 
+// 记录是否关闭任务，原子变量
+var isCancel int32 = 0
+
 // 向文件写入缓存的任务通道
 var cacheChan = make(chan string, 20)
 
@@ -72,35 +75,37 @@ func (p *Pixivic) CrawUrl() {
 
 	// 从图片ID通道读取图片ID并开启一个协程下载
 	for imgId := range p.IdChan {
+		// 判断是否取消任务
+		if p.cancelled() {
+			// 标记取消任务
+			atomic.AddInt32(&isCancel, 1)
+			break
+		}
 		// 判断是否下载过
 		if !p.Memo[imgId] {
-			if p.cancelled() {
-				break
-			} else {
-				p.Memo[imgId] = true
-				// 从池中申请一个协程，开启任务
-				p.GoroutinePool <- struct{}{}
-				// 任务计数加一
-				p.CountDown.Add(1)
-				go func(imgId string) {
-					start := time.Now()
-					// 根据ID下载图片, isDown代表下载成功或者失败
-					isDown := downloadImg(imgId)
-					// 如果下载成功则通知缓存通道向momes中添加已经下载图片的ID
-					// 然后通知用户图片下载成功以及用时
-					if isDown {
-						// 通知缓存队列
-						cacheChan <- imgId
-						fmt.Println(index, ": ", imgId, " 爬取成功 !",
-							time.Since(start), " 按回车退出...")
-						// 使用原子递增保证线程安全
-						atomic.AddInt64(&index, 1)
-					}
-					// 正在运行任务数减一，并向池中归还协程
-					p.CountDown.Done()
-					<-p.GoroutinePool
-				}(imgId)
-			}
+			p.Memo[imgId] = true
+			// 从池中申请一个协程，开启任务
+			p.GoroutinePool <- struct{}{}
+			// 任务计数加一
+			p.CountDown.Add(1)
+			go func(imgId string) {
+				start := time.Now()
+				// 根据ID下载图片, isDown代表下载成功或者失败
+				isDown := downloadImg(imgId)
+				// 如果下载成功则通知缓存通道向momes中添加已经下载图片的ID
+				// 然后通知用户图片下载成功以及用时
+				if isDown {
+					// 通知缓存队列
+					cacheChan <- imgId
+					fmt.Println(index, ": ", imgId, " 爬取成功 !",
+						time.Since(start), " 按回车退出...")
+					// 使用原子递增保证线程安全
+					atomic.AddInt64(&index, 1)
+				}
+				// 正在运行任务数减一，并向池中归还协程
+				p.CountDown.Done()
+				<-p.GoroutinePool
+			}(imgId)
 		}
 	}
 	// 关闭线程池
@@ -108,7 +113,6 @@ func (p *Pixivic) CrawUrl() {
 	// 等待任务全部完成,关闭缓存队列
 	p.CountDown.Wait()
 	close(cacheChan)
-	close(p.IdChan)
 }
 
 // 根据传入图片Id下载图片
@@ -218,7 +222,7 @@ func addCache() {
 var urlChan = make(chan struct{}, 5)
 
 // 记录缓存的层爬取过的主页
-var pageCache = make(map[string]bool)
+var pageCache = &sync.Map{}
 
 // 获取图片Id的相关图片
 func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool, index int) {
@@ -226,7 +230,7 @@ func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool, index int) {
 	p.IdChan <- imgId
 	for i := 1; i <= 3; i++ {
 		originUrl := "https://api.pixivic.com/illusts/" +
-			imgId + "/related?page=" + strconv.Itoa(i) + "&pageSize=50"
+			imgId + "/related?page=" + strconv.Itoa(i) + "&pageSize=60"
 
 		resp, err := http.Get(originUrl)
 		if err != nil {
@@ -239,18 +243,21 @@ func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool, index int) {
 		// 向图片ID通道添加任务
 		for _, id := range relevancePage.Data {
 			curId := strconv.Itoa(id.Id)
-			p.IdChan <- curId
-			if index == 0 {
-				recursion = false
-			}
-			if !pageCache[curId] {
-				pageCache[curId] = true
-				// 只递归爬取index层
-				go p.GetRelevanceUrls(curId, recursion, index-1)
+			if atomic.LoadInt32(&isCancel) == 0 {
+				p.IdChan <- curId
+				if index == 0 {
+					recursion = false
+				}
+				if v, _ := pageCache.Load(curId); v == nil {
+					pageCache.Store(curId, true)
+					// 只递归爬取index层
+					go p.GetRelevanceUrls(curId, recursion, index-1)
+				}
 			}
 		}
 	}
-	if !recursion {
+	if !recursion && atomic.LoadInt32(&isCancel) == 0 {
+		atomic.AddInt32(&isCancel, 1)
 		close(p.IdChan)
 	}
 	<-urlChan
