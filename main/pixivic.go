@@ -64,7 +64,8 @@ func main() {
 
 	// 等待已经启动的任务结束
 	countdown.Wait()
-	fmt.Println("进程已停止...")
+	fmt.Println("进程已停止, 按回车退出程序...")
+	input.Scan()
 }
 
 // 获取之前下载的缓存的函数, images/memos 缓存了曾经所有下载过的图片的id，以空格分隔

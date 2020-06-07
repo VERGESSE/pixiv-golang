@@ -250,10 +250,10 @@ func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool, index int) {
 			}
 		}
 	}
-	<-urlChan
 	if !recursion {
 		close(p.IdChan)
 	}
+	<-urlChan
 }
 
 var lock sync.Mutex
