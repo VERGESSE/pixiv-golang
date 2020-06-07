@@ -235,6 +235,7 @@ func (p *Pixivic) GetRelevanceUrls(imgId string, recursion bool, index int) {
 		resp, err := http.Get(originUrl)
 		if err != nil {
 			log.Println(err)
+			break
 		}
 		var relevancePage = &relevancePage{}
 		json.NewDecoder(resp.Body).Decode(relevancePage)
