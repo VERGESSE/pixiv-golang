@@ -134,6 +134,7 @@ func (p *Pixivic) CrawUrl() {
 	// 等待任务全部完成,关闭缓存队列
 	p.CountDown.Wait()
 	close(cacheChan)
+	close(p.Done)
 }
 
 // 根据传入图片Id下载图片
@@ -305,6 +306,9 @@ func (p *Pixivic) GetKeywordsUrls(keyword string) {
 			}
 		}
 	}
+	// 优雅关闭
+	p.Done <- true
+	p.IdChan <- "Done"
 }
 
 // 获取图片Id的相关图片
