@@ -93,13 +93,15 @@ func (p *Pixivic) CrawUrl() {
 	go addCache()
 
 	// 从图片ID通道读取图片ID并开启一个协程下载
-	for imgId := range p.IdChan {
+	for imgUrl := range p.IdChan {
 		// 判断是否取消任务
 		if p.cancelled() {
 			// 标记取消任务
 			atomic.AddInt32(&isCancel, 1)
 			break
 		}
+		nameSlice := strings.Split(imgUrl, "/")
+		imgId := strings.Split(nameSlice[len(nameSlice)-1], "_")[0]
 		// 判断是否下载过
 		if !p.Memo[imgId] {
 			p.Memo[imgId] = true
@@ -107,10 +109,10 @@ func (p *Pixivic) CrawUrl() {
 			p.GoroutinePool <- struct{}{}
 			// 任务计数加一
 			p.CountDown.Add(1)
-			go func(imgId string) {
+			go func(imgUrl, imgId string) {
 				start := time.Now()
 				// 根据ID下载图片, isDown代表下载成功或者失败
-				isDown := downloadImg(imgId)
+				isDown := downloadImg(imgUrl)
 				// 如果下载成功则通知缓存通道向momes中添加已经下载图片的ID
 				// 然后通知用户图片下载成功以及用时
 				if isDown {
@@ -124,7 +126,7 @@ func (p *Pixivic) CrawUrl() {
 				// 正在运行任务数减一，并向池中归还协程
 				p.CountDown.Done()
 				<-p.GoroutinePool
-			}(imgId)
+			}(imgUrl, imgId)
 		}
 	}
 	// 关闭线程池

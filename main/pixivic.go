@@ -14,12 +14,12 @@ import (
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	idChan := make(chan string, 20)
+	idChan := make(chan string, 10)
 	countdown := sync.WaitGroup{}
 	done := make(chan bool)
 	memo := make(map[string]bool)
 	pixivic := &urlcrawler.Pixivic{
-		GoroutinePool: make(chan struct{}, 30),   // 设置协程数量
+		GoroutinePool: make(chan struct{}, 20),   // 设置协程数量
 		IdChan: idChan,							  // 存储图片id的通道
 		CountDown: &countdown,                    // 控制程序平稳结束的栅栏
 		Memo: memo,                               // 缓存，防止下载重复图片
