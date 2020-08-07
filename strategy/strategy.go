@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -14,6 +15,7 @@ import (
 // 根据输入关键字获取图片id
 func KeywordStrategy(p *pixivic.Pixivic) {
 	keyword := p.KeyWord
+	baseGroup, _ := url.QueryUnescape(keyword)
 	for i := 1; i <= 50; i++ {
 		resp, err := http.Get("https://api.pixivic.com/illustrations?" +
 			"illustType=illust&searchType=original&maxSanityLevel=9&page=" +
@@ -35,7 +37,7 @@ func KeywordStrategy(p *pixivic.Pixivic) {
 			for _, detail2 := range getRelevanceUrls(strconv.Itoa(detail.Id), 1, 3) {
 				picDetail, flag := process(p, &detail2)
 				if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
-					picDetail.Group = keyword + "/" + picDetail.Group
+					picDetail.Group = baseGroup + "/" + picDetail.Group
 					p.PicChan <- picDetail
 				}
 			}
