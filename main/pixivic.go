@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"pixivic/strategy"
 	"pixivic/urlcrawler"
 	"strconv"
 	"strings"
@@ -14,66 +15,108 @@ import (
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	idChan := make(chan string, 10)
+	picChan := make(chan *urlcrawler.PicDetail, 10)
 	countdown := sync.WaitGroup{}
 	done := make(chan bool)
 	memo := make(map[string]bool)
 	pixivic := &urlcrawler.Pixivic{
-		GoroutinePool: make(chan struct{}, 20),   // 设置协程数量
-		IdChan: idChan,							  // 存储图片id的通道
+		GoroutinePool: make(chan struct{}, 20),   // 设置线程数量
+		PicChan: picChan,						  // 存储图片id的通道
 		CountDown: &countdown,                    // 控制程序平稳结束的栅栏
 		Memo: memo,                               // 缓存，防止下载重复图片
 		Done: done,                               // 如果主动停止程序，依靠Done通知其他协程结束任务
+		CrawlStrategy: strategy.KeywordStrategy,
 	}
 	// 加载缓存，防止下载之前的重复图片
 	getOld(memo)
 
-	//fmt.Println("请输入起始地址(起始地址请访问:https://pixivic.com)以及最低收藏数(默认888)")
-	//fmt.Println("选择一张你喜欢的图片，点进去并复制地址")
-	//fmt.Println("例如:https://pixivic.com/illusts/76701981?VNK=35fda4b2?>2000")
-	//fmt.Println("或者直接输入起始图片的id,例如: 76701981?>2000")
-	//fmt.Println("或者直接输入图片ID:76701981,默认爬取收藏大于888的图片")
-	fmt.Println("请输入你想爬取的关键词，默认将爬取适合电脑横屏竖屏分辨率以及收藏数888以上的图片")
-	fmt.Println("后续更新会在8月份进行")
+	fmt.Println("具体操作详见博客: https://www.vergessen.top/article/v/9942142761049735")
+	fmt.Println("默认输入关键字爬取关键字对应的收藏数大于1000的图片")
 	input := bufio.NewScanner(os.Stdin)
 	var inputCtx string
 	if input.Scan() {
-		inputCtx = input.Text()
+		inputCtx = strings.ToLower(input.Text())
 	}
-	// 根据输入获取起始地址
-	//originId := strings.Split(originUrl, "/")
-	//originId = strings.Split(originId[len(originId)-1], "?")
-	// 根据输入获取最低点赞数
-	split := strings.Split(inputCtx, ">")
-	if len(split) > 1 {
-		bookmarks := split[1]
-		pixivic.Bookmarks, _ = strconv.Atoi(bookmarks)
+
+	if initPixivic(pixivic, inputCtx) {
+		// 设置输入任意字符退出,如回车
+		go func() {
+			for {
+				if input.Scan() {
+					scan := strings.ToLower(input.Text())
+					if scan == "q" {
+						fmt.Println("停止进程中, 程序将在执行完已提交任务后退出...")
+						done <- true
+						pixivic.PicChan <- &urlcrawler.PicDetail{}
+						break
+					}
+				}
+			}
+		}()
+
+		// 启动根据输入Id，加载相关图片的协程, 并递归调用一层
+		//go pixivic.GetRelevanceUrls(originId[0], true, 6)
+
+		// 开启根据关键词下载策略
+		pixivic.GetUrls()
+
+		// 开启图片下载任务
+		pixivic.CrawUrl()
+
+		// 等待已经启动的任务结束
+		countdown.Wait()
 	} else {
-		pixivic.Bookmarks = 888
+		fmt.Println("输入参数有误！")
 	}
 
-	// 设置输入任意字符退出,如回车
-	go func() {
-		input.Scan()
-		fmt.Println("停止进程中, 程序将在执行完已提交任务后退出...")
-		done <- true
-	}()
-
-	// 启动根据输入Id，加载相关图片的协程, 并递归调用一层
-	//go pixivic.GetRelevanceUrls(originId[0], true, 6)
-
-	// 开启根据关键词下载策略
-	go pixivic.GetKeywordsUrls(split[0])
-
-	// 开启图片下载任务
-	pixivic.CrawUrl()
-
-	// 等待已经启动的任务结束
-	countdown.Wait()
 	fmt.Println()
 	fmt.Println("进程已停止, 按回车退出程序...")
 	fmt.Println()
 	input.Scan()
+}
+
+func initPixivic(p *urlcrawler.Pixivic, inputCtx string) bool {
+	keywords := strings.Split(inputCtx, " ")
+	if len(keywords) == 0 {
+		return false
+	}
+	p.KeyWord = keywords[0]
+	p.Bookmarks = 1000
+	p.PicType = "wh"
+	for _, keyword := range keywords[1:] {
+		switch keyword[:2] {
+		case "-b":
+			bookmarks, err := strconv.Atoi(keyword[2:])
+			if err != nil {
+				return false
+			}
+			p.Bookmarks = bookmarks
+		case "-t":
+			p.PicType = keyword[2:]
+		case "-s":
+			switch keyword[2:] {
+			case "keyword":
+				p.CrawlStrategy = strategy.KeywordStrategy
+				fmt.Println("即将根据搜索关键字爬取图片")
+			case "related":
+				if _, err := strconv.Atoi(keywords[0]); err != nil {
+					return false
+				}
+				p.CrawlStrategy = strategy.PicIdStrategy
+				fmt.Println("即将根据图片ID爬取相关图片")
+			case "author":
+				if _, err := strconv.Atoi(keywords[0]); err != nil {
+					return false
+				}
+				p.CrawlStrategy = strategy.AuthorStrategy
+				fmt.Println("即将根据作者ID爬取该作者的所有图片")
+			default:
+				p.CrawlStrategy = strategy.KeywordStrategy
+				fmt.Println("即将根据搜索关键字爬取图片")
+			}
+		}
+	}
+	return true
 }
 
 // 获取之前下载的缓存的函数, images/memos 缓存了曾经所有下载过的图片的id，以空格分隔
