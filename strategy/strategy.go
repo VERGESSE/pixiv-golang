@@ -31,7 +31,7 @@ func KeywordStrategy(p *pixivic.Pixivic) {
 		for _, detail := range details.Data {
 			picDetail, flag := process(p, &detail)
 			if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
-				picDetail.Group = keyword + "/" + picDetail.Group
+				picDetail.Group = baseGroup + "/" + picDetail.Group
 				p.PicChan <- picDetail
 			}
 			for _, detail2 := range getRelevanceUrls(strconv.Itoa(detail.Id), 1, 3) {
