@@ -15,9 +15,7 @@ import (
 
 const (
 	// 访问初始地址 + 图片ID即可获取图片信息
-	baseUrl string = "https://api.pixivic.com/illusts/"
-	// 只下载插画
-	tag string = "illust"
+	baseUrl string = "https://pixivic.com/illusts/"
 )
 
 // 爬虫结构体

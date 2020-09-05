@@ -55,11 +55,17 @@ func PicIdStrategy(p *pixivic.Pixivic) {
 			picDetail, flag := process(p, &detail)
 			if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 				p.PicChan <- picDetail
-			}
-			for _, detail2 := range getRelevanceUrls(strconv.Itoa(detail.Id), 1, 5) {
-				picDetail, flag := process(p, &detail2)
-				if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
-					p.PicChan <- picDetail
+				for _, detail2 := range getRelevanceUrls(strconv.Itoa(detail.Id), 1, 8) {
+					picDetail, flag := process(p, &detail2)
+					if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
+						p.PicChan <- picDetail
+						for _, detail3 := range getRelevanceUrls(strconv.Itoa(detail2.Id), 1, 5) {
+							picDetail, flag := process(p, &detail3)
+							if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
+								p.PicChan <- picDetail
+							}
+						}
+					}
 				}
 			}
 		}
