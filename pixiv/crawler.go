@@ -32,6 +32,8 @@ type Pixiv struct {
 	Done          chan bool
 	// http请求代理客户端
 	Client *http.Client
+	// Cookie
+	Cookie string
 	// 爬取关键字
 	KeyWord string
 	// 要求点赞数 默认 1000
@@ -48,7 +50,8 @@ type Pixiv struct {
 type UrlDetail struct {
 	Body struct {
 		Illust struct {
-			Data []Illust
+			Data  []Illust
+			Total int
 		}
 	}
 }
@@ -146,6 +149,7 @@ func (p *Pixiv) GetUrls() {
 		if atomic.LoadInt32(&p.IsCancel) == 0 {
 			p.PicChan <- &PicDetail{}
 			p.Done <- true
+			p.PicChan <- &PicDetail{}
 		}
 	}()
 }
@@ -170,7 +174,7 @@ func (p *Pixiv) downloadImg(detail *PicDetail) bool {
 	// 设置http请求地址，如果不设置referer，将返回403页面
 	header := &http.Header{}
 	header.Add("referer", referUrl)
-	header.Add("user-agent", getRandomUserAgent())
+	header.Add("user-agent", GetRandomUserAgent())
 
 	request := &http.Request{
 		Method: "GET",
@@ -240,7 +244,7 @@ func (p *Pixiv) cancelled() bool {
 	}
 }
 
-func getRandomUserAgent() string {
+func GetRandomUserAgent() string {
 	index := rand.Int() % len(userAgent)
 	return userAgent[index]
 }

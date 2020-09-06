@@ -30,7 +30,7 @@ func main() {
 	// 加载缓存，防止下载之前的重复图片
 	getOld(memo)
 
-	fmt.Println("具体操作详见博客: https://www.vergessen.top/article/v/9942142761049735")
+	fmt.Println("具体操作详见博客: https://www.vergessen.top/article/v/9942142761049736")
 	fmt.Println("默认输入关键字爬取关键字对应的收藏数大于1000的图片")
 	input := bufio.NewScanner(os.Stdin)
 	var inputCtx string

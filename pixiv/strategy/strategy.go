@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"net/url"
 	"pixivic/pixiv"
 	"strconv"
@@ -15,45 +16,60 @@ import (
 
 // 根据输入关键字获取图片id
 func KeywordStrategy(p *pixiv.Pixiv) {
-	baseGroup, _ := url.QueryUnescape(p.KeyWord)
+	baseGroup := p.KeyWord
 	keyword := p.KeyWord +
-		"%20" + strconv.Itoa(getMinBookMark(p.Bookmarks)) + "users入り"
+		"%20" + strconv.Itoa(getMinBookMark(p.Bookmarks)) +
+		url.QueryEscape("users入り")
 	wltHlt := "&wlt=1000&hlt=1000"
 	if strings.Contains(p.PicType, "s") {
 		wltHlt = ""
 	}
+	wait := sync.WaitGroup{}
 	for i := 1; ; i++ {
-		resp, err := p.Client.Get("https://www.pixiv.net/ajax/search/illustrations/" +
+		header := &http.Header{}
+		header.Add("user-agent", pixiv.GetRandomUserAgent())
+		header.Add("cookie", p.Cookie)
+		nowUrl, _ := url.Parse("https://www.pixiv.net/ajax/search/illustrations/" +
 			keyword + "?word=" + keyword + "&order=date_d&mode=all" +
 			"&p=" + strconv.Itoa(i) + "&s_mode=s_tag&type=illust" + wltHlt)
+		request := &http.Request{
+			Method: "GET",
+			URL:    nowUrl,
+			Header: *header,
+		}
+		resp, err := p.Client.Do(request)
 		if err != nil {
 			log.Println(err)
 			break
 		}
+
 		var details = &pixiv.UrlDetail{}
 		json.NewDecoder(resp.Body).Decode(details)
 		resp.Body.Close()
-		if len(details.Body.Illust.Data) < 60 {
-			log.Println("关键字爬取搜索完成！")
-			break
-		}
 		for _, detail := range details.Body.Illust.Data {
 			picDetail, flag := process(p, &detail, false)
 			if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 				picDetail.Group = baseGroup + "/" + picDetail.Group
 				p.PicChan <- picDetail
 				go func(id string) {
-					for _, detail2 := range getRelevanceUrls(p, id, 20) {
+					wait.Add(1)
+					for _, detail2 := range getRelevanceUrls(p, id, 50) {
 						picDetail, flag := process(p, &detail2, true)
 						if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 							picDetail.Group = baseGroup + "/" + picDetail.Group
 							p.PicChan <- picDetail
 						}
 					}
+					wait.Done()
 				}(detail.Id)
 			}
 		}
+		if len(details.Body.Illust.Data) < 60 {
+			log.Println("关键字爬取搜索完成！")
+			break
+		}
 	}
+	wait.Wait()
 }
 
 // 根据输入图片Id爬取相关图片
@@ -96,7 +112,16 @@ func getRelevanceUrls(p *pixiv.Pixiv, imgId string, limit int) []pixiv.Illust {
 	originUrl := "https://www.pixiv.net/ajax/illust/" + imgId +
 		"/recommend/init?limit=" + strconv.Itoa(limit)
 
-	resp, err := p.Client.Get(originUrl)
+	header := &http.Header{}
+	header.Add("user-agent", pixiv.GetRandomUserAgent())
+	header.Add("cookie", p.Cookie)
+	nowUrl, _ := url.Parse(originUrl)
+	request := &http.Request{
+		Method: "GET",
+		URL:    nowUrl,
+		Header: *header,
+	}
+	resp, err := p.Client.Do(request)
 	if err != nil {
 		return nil
 	}

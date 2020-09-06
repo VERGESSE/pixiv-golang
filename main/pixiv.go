@@ -37,10 +37,13 @@ func main() {
 		Transport: trans,
 		Timeout:   time.Second * 30, //超时时间
 	}
+	// 获取Cookie
+	cookie := getCookie()
 	p := &pixiv.Pixiv{
 		GoroutinePool: make(chan struct{}, 50),   // 设置线程数量
 		PicChan: picChan,						  // 存储图片id的通道
 		Client: client,                           // http请求代理客户端
+		Cookie: cookie,
 		CountDown: &countdown,                    // 控制程序平稳结束的栅栏
 		Memo: memo,                               // 缓存，防止下载重复图片
 		Done: done,                               // 如果主动停止程序，依靠Done通知其他协程结束任务
@@ -150,5 +153,14 @@ func getOldImg(memo map[string]bool) {
 		memo[strings.Split(s," ")[0]] = true
 	}
 	memoFile.Close()
+}
+
+func getCookie() string {
+	cookieFile, _ := os.OpenFile("cookie.txt",
+		os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	reader := bufio.NewReader(cookieFile)
+	line, _, _ := reader.ReadLine()
+	cookie := fmt.Sprintf("%s", line)
+	return cookie[:len(cookie)-1]
 }
 
