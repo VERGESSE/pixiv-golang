@@ -42,6 +42,7 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 		resp, err := p.Client.Do(request)
 		if err != nil {
 			log.Println(err)
+			i--
 			continue
 		}
 
