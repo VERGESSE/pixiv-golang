@@ -67,7 +67,7 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 			if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 				picDetail.Group = baseGroup + "/" + picDetail.Group
 				num++
-				//p.PicChan <- picDetail
+				p.PicChan <- picDetail
 			}
 		}
 		fmt.Println("第 ", i, "页筛选出 ", num, " 张")
