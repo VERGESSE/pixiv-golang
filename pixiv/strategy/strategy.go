@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // 根据输入关键字获取图片id
@@ -25,6 +26,7 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 		wltHlt = ""
 	}
 	total := 0
+	retryTime := 0
 	for i := 1; ; i++ {
 		header := &http.Header{}
 		header.Add("user-agent", pixiv.GetRandomUserAgent())
@@ -50,6 +52,14 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 			fmt.Println("共 ", total, "张待选, ", total/60, " 页待爬取")
 		}
 		resp.Body.Close()
+		if len(details.Body.Illust.Data) == 0 && retryTime < 10 {
+			retryTime++
+			fmt.Println("第 ", i, "页获取0条数据，正在重试"+strconv.Itoa(retryTime)+"...")
+			i--
+			time.Sleep(time.Millisecond * 500)
+			continue
+		}
+		retryTime = 0
 		fmt.Println("第 ", i, "页待选 ", len(details.Body.Illust.Data), " 张")
 		num := 0
 		for _, detail := range details.Body.Illust.Data {
@@ -57,7 +67,7 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 			if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 				picDetail.Group = baseGroup + "/" + picDetail.Group
 				num++
-				p.PicChan <- picDetail
+				//p.PicChan <- picDetail
 			}
 		}
 		fmt.Println("第 ", i, "页筛选出 ", num, " 张")
