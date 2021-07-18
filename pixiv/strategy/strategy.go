@@ -40,9 +40,11 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 			Header: *header,
 		}
 		resp, err := p.Client.Do(request)
-		if err != nil {
+		if err != nil && retryTime < 10 {
 			log.Println(err)
+			retryTime++
 			i--
+			time.Sleep(time.Millisecond * 500)
 			continue
 		}
 
