@@ -22,7 +22,7 @@ func main() {
 
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	picChan := make(chan *pixiv.PicDetail, 100)
+	picChan := make(chan *pixiv.PicDetail, 200)
 	countdown := sync.WaitGroup{}
 	done := make(chan bool)
 	memo := make(map[string]bool)
@@ -40,7 +40,7 @@ func main() {
 	// 获取Cookie
 	cookie := getCookie()
 	p := &pixiv.Pixiv{
-		GoroutinePool: make(chan struct{}, 50),   // 设置线程数量
+		GoroutinePool: make(chan struct{}, 200),   // 设置线程数量
 		PicChan: picChan,						  // 存储图片id的通道
 		Client: client,                           // http请求代理客户端
 		Cookie: cookie,
@@ -99,6 +99,9 @@ func initPixiv(p *pixiv.Pixiv, inputCtx string) bool {
 	keywords := strings.Split(inputCtx, " ")
 	if len(keywords) == 0 {
 		return false
+	}
+	if keywords[0] == "all" {
+		keywords[0] = ""
 	}
 	p.KeyWord = keywords[0]
 	p.Bookmarks = 1000

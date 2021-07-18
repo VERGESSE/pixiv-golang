@@ -67,7 +67,8 @@ type Illust struct {
 	Id   string
 	Type string
 	// 图片地址
-	Url string
+	Url  string
+	Tags []string
 	// 创建时间
 	CreateDate string
 	// 图片宽度，高度，收藏数
@@ -94,18 +95,25 @@ func (p *Pixiv) CrawUrl() {
 	// 开启缓存任务
 	go addCache()
 
+	var numAll int64 = 0
+	var numDown int64 = 0
 	// 从图片ID通道读取图片ID并开启一个协程下载
 	for pic := range p.PicChan {
 		// 判断是否取消任务
-		if p.cancelled() {
+		if p.Cancelled() {
 			// 标记取消任务
 			atomic.AddInt32(&p.IsCancel, 1)
 			break
 		}
 		imgId := pic.Id
+		numAll++
+		if numAll%100 == 0 {
+			fmt.Println("下载率(", len(p.Memo), "):", 100*float64(numDown)/float64(numAll), "%")
+		}
 		// 判断是否下载过
 		if !p.Memo[imgId] {
 			p.Memo[imgId] = true
+			numDown++
 			// 从池中申请一个协程，开启任务
 			p.GoroutinePool <- struct{}{}
 			// 任务计数加一
@@ -235,7 +243,7 @@ func addCache() {
 }
 
 // 判断任务是否结束
-func (p *Pixiv) cancelled() bool {
+func (p *Pixiv) Cancelled() bool {
 	select {
 	case <-p.Done:
 		return true

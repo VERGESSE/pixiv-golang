@@ -16,7 +16,7 @@ import (
 
 // 根据输入关键字获取图片id
 func KeywordStrategy(p *pixiv.Pixiv) {
-	baseGroup := p.KeyWord
+	baseGroup, _ := url.QueryUnescape(p.KeyWord)
 	keyword := p.KeyWord +
 		"%20" + strconv.Itoa(getMinBookMark(p.Bookmarks)) +
 		url.QueryEscape("users入り")
@@ -24,7 +24,7 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 	if strings.Contains(p.PicType, "s") {
 		wltHlt = ""
 	}
-	wait := sync.WaitGroup{}
+	total := 0
 	for i := 1; ; i++ {
 		header := &http.Header{}
 		header.Add("user-agent", pixiv.GetRandomUserAgent())
@@ -40,36 +40,35 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 		resp, err := p.Client.Do(request)
 		if err != nil {
 			log.Println(err)
-			break
+			continue
 		}
 
 		var details = &pixiv.UrlDetail{}
 		json.NewDecoder(resp.Body).Decode(details)
+		if i == 1 {
+			total = details.Body.Illust.Total
+			fmt.Println("共 ", total, "张待选, ", total/60, " 页待爬取")
+		}
 		resp.Body.Close()
+		fmt.Println("第 ", i, "页待选 ", len(details.Body.Illust.Data), " 张")
+		num := 0
 		for _, detail := range details.Body.Illust.Data {
 			picDetail, flag := process(p, &detail, false)
 			if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 				picDetail.Group = baseGroup + "/" + picDetail.Group
+				num++
 				p.PicChan <- picDetail
-				go func(id string) {
-					wait.Add(1)
-					for _, detail2 := range getRelevanceUrls(p, id, 50) {
-						picDetail, flag := process(p, &detail2, true)
-						if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
-							picDetail.Group = baseGroup + "/" + picDetail.Group
-							p.PicChan <- picDetail
-						}
-					}
-					wait.Done()
-				}(detail.Id)
 			}
 		}
-		if len(details.Body.Illust.Data) < 60 {
+		fmt.Println("第 ", i, "页筛选出 ", num, " 张")
+		if 60*i > total {
 			log.Println("关键字爬取搜索完成！")
 			break
 		}
+		if atomic.LoadInt32(&p.IsCancel) != 0 {
+			break
+		}
 	}
-	wait.Wait()
 }
 
 // 根据输入图片Id爬取相关图片
@@ -134,8 +133,57 @@ func getRelevanceUrls(p *pixiv.Pixiv, imgId string, limit int) []pixiv.Illust {
 
 // 根据图片原始信息加工成要爬取的图片信息
 func process(p *pixiv.Pixiv, detail *pixiv.Illust, bookMark bool) (*pixiv.PicDetail, bool) {
-	// 如果需要计算点赞数则进行计算
-	if bookMark {
+
+	pic := &pixiv.PicDetail{
+		Id:    detail.Id,
+		Url:   detail.Url,
+		Group: "",
+	}
+	for _, tag := range detail.Tags {
+		if strings.Contains(strings.ToLower(tag), "r-18") {
+			pic.Group += "R-18/"
+		}
+	}
+	flag := false
+	h := detail.Height
+	w := detail.Width
+	isWidth := w > h
+	var max, min int
+	if w > h {
+		max, min = w, h
+	} else {
+		min, max = w, h
+	}
+	ratio := float32(max) / float32(min)
+	pic.Ratio = ratio
+	if max >= 1900 && min >= 1000 {
+		if ratio < 2.15 && ratio > 1.4 {
+			if isWidth {
+				if strings.Contains(p.PicType, "w") {
+					pic.Group += "宽屏"
+					flag = true
+				}
+			} else {
+				if strings.Contains(p.PicType, "h") {
+					pic.Group += "竖屏"
+					flag = true
+				}
+			}
+		} else {
+			if strings.Contains(p.PicType, "o") {
+				pic.Group += "其他"
+				flag = true
+			}
+		}
+	} else {
+		if strings.Contains(p.PicType, "s") {
+			pic.Group += "小屏"
+			flag = true
+		}
+	}
+
+	if flag && bookMark {
+		// 如果需要计算点赞数则进行计算
 		resp, err := p.Client.Get("https://www.pixiv.net/artworks/" + detail.Id)
 		if err != nil {
 			return nil, false
@@ -153,52 +201,7 @@ func process(p *pixiv.Pixiv, detail *pixiv.Illust, bookMark bool) (*pixiv.PicDet
 			return nil, false
 		}
 	}
-
-	if !bookMark || detail.BookmarkData >= p.Bookmarks {
-		pic := &pixiv.PicDetail{
-			Id:  detail.Id,
-			Url: detail.Url,
-		}
-		flag := false
-		h := detail.Height
-		w := detail.Width
-		isWidth := w > h
-		var max, min int
-		if w > h {
-			max, min = w, h
-		} else {
-			min, max = w, h
-		}
-		ratio := float32(max) / float32(min)
-		pic.Ratio = ratio
-		if max >= 1900 && min >= 1000 {
-			if ratio < 2.15 && ratio > 1.4 {
-				if isWidth {
-					if strings.Contains(p.PicType, "w") {
-						pic.Group = "宽屏"
-						flag = true
-					}
-				} else {
-					if strings.Contains(p.PicType, "h") {
-						pic.Group = "竖屏"
-						flag = true
-					}
-				}
-			} else {
-				if strings.Contains(p.PicType, "o") {
-					pic.Group = "其他"
-					flag = true
-				}
-			}
-		} else {
-			if strings.Contains(p.PicType, "s") {
-				pic.Group = "小屏"
-				flag = true
-			}
-		}
-		return pic, flag
-	}
-	return nil, false
+	return pic, flag
 }
 
 func getMinBookMark(bookmark int) int {
