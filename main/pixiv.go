@@ -122,9 +122,6 @@ func initPixiv(p *pixiv.Pixiv, inputCtx string) bool {
 				p.CrawlStrategy = strategy.KeywordStrategy
 				fmt.Println("即将根据搜索关键字爬取图片")
 			case "related":
-				if _, err := strconv.Atoi(keywords[0]); err != nil {
-					return false
-				}
 				p.CrawlStrategy = strategy.PicIdStrategy
 				fmt.Println("即将根据图片ID爬取相关图片")
 			case "author":

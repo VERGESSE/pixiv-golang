@@ -107,9 +107,9 @@ func (p *Pixiv) CrawUrl() {
 		}
 		imgId := pic.Id
 		numAll++
-		if numAll%100 == 0 {
-			fmt.Println("下载率(", len(p.Memo), "):", 100*float64(numDown)/float64(numAll), "%")
-		}
+		//if numAll%100 == 0 {
+		//	fmt.Println("下载率(", len(p.Memo), "):", 100*float64(numDown)/float64(numAll), "%")
+		//}
 		// 判断是否下载过
 		if !p.Memo[imgId] {
 			p.Memo[imgId] = true

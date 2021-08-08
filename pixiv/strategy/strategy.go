@@ -87,30 +87,32 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 // 根据输入图片Id爬取相关图片
 func PicIdStrategy(p *pixiv.Pixiv) {
 	wait := sync.WaitGroup{}
-	imgId := p.KeyWord
-	for _, detail := range getRelevanceUrls(p, imgId, 100) {
-		picDetail, flag := process(p, &detail, true)
-		if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
-			p.PicChan <- picDetail
-		}
-		wait.Add(1)
-		go func(id string) {
-			for _, detail2 := range getRelevanceUrls(p, id, 100) {
-				picDetail, flag := process(p, &detail2, true)
-				if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
-					p.PicChan <- picDetail
-				}
-				for _, detail3 := range getRelevanceUrls(p, id, 50) {
-					picDetail, flag := process(p, &detail3, true)
+	imgIds, _ := url.QueryUnescape(p.KeyWord)
+	for _, imgId := range strings.Split(imgIds, ",") {
+		for _, detail := range getRelevanceUrls(p, imgId, 100) {
+			picDetail, flag := process(p, &detail, true)
+			if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
+				p.PicChan <- picDetail
+			}
+			wait.Add(1)
+			go func(id string) {
+				for _, detail2 := range getRelevanceUrls(p, id, 100) {
+					picDetail, flag := process(p, &detail2, true)
 					if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 						p.PicChan <- picDetail
 					}
+					for _, detail3 := range getRelevanceUrls(p, id, 50) {
+						picDetail, flag := process(p, &detail3, true)
+						if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
+							p.PicChan <- picDetail
+						}
+					}
 				}
-			}
-			wait.Done()
-		}(detail.Id)
+				wait.Done()
+			}(detail.Id)
+		}
+		wait.Wait()
 	}
-	wait.Wait()
 }
 
 // 根据作者ID爬取其所有图片
