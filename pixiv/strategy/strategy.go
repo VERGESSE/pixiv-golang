@@ -101,12 +101,6 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 					if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 						p.PicChan <- picDetail
 					}
-					for _, detail3 := range getRelevanceUrls(p, id, 50) {
-						picDetail, flag := process(p, &detail3, true)
-						if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
-							p.PicChan <- picDetail
-						}
-					}
 				}
 				wait.Done()
 			}(detail.Id)
