@@ -90,7 +90,7 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 	imgIds, _ := url.QueryUnescape(p.KeyWord)
 	for _, imgId := range strings.Split(imgIds, ",") {
 		for _, detail := range getRelevanceUrls(p, imgId, 100) {
-			if atomic.LoadInt32(&p.IsCancel) == 0 {
+			if atomic.LoadInt32(&p.IsCancel) == 0 && !p.Memo[imgId] {
 				picDetail, flag := process(p, &detail, true)
 				if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 					p.PicChan <- picDetail
@@ -99,7 +99,7 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 			wait.Add(1)
 			go func(id string) {
 				for _, detail2 := range getRelevanceUrls(p, id, 100) {
-					if atomic.LoadInt32(&p.IsCancel) == 0 {
+					if atomic.LoadInt32(&p.IsCancel) == 0 && !p.Memo[imgId] {
 						picDetail, flag := process(p, &detail2, true)
 						if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 							p.PicChan <- picDetail
