@@ -93,8 +93,8 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 	for _, imgId := range strings.Split(imgIds, ",") {
 		for _, detail := range getRelevanceUrls(p, imgId, 100) {
 			mutex.Lock()
-			if !complete[imgId] {
-				complete[imgId] = true
+			if !complete[detail.Id] {
+				complete[detail.Id] = true
 				mutex.Unlock()
 				if atomic.LoadInt32(&p.IsCancel) == 0 && !p.Memo[imgId] {
 					picDetail, flag := process(p, &detail, true)
@@ -105,13 +105,12 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 			} else {
 				mutex.Unlock()
 			}
-
 			wait.Add(1)
 			go func(id string) {
 				for _, detail2 := range getRelevanceUrls(p, id, 100) {
 					mutex.Lock()
-					if !complete[imgId] {
-						complete[imgId] = true
+					if !complete[detail.Id] {
+						complete[detail.Id] = true
 						mutex.Unlock()
 						if atomic.LoadInt32(&p.IsCancel) == 0 && !p.Memo[imgId] {
 							picDetail, flag := process(p, &detail2, true)
