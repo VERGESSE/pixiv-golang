@@ -44,6 +44,8 @@ type Pixiv struct {
 	CrawlStrategy func(p *Pixiv)
 	// 是否取消任务
 	IsCancel int32
+	// 并发控制
+	Mutex *sync.Mutex
 }
 
 // 存储爬取图片原始信息的结构体
@@ -111,8 +113,10 @@ func (p *Pixiv) CrawUrl() {
 		//	fmt.Println("下载率(", len(p.Memo), "):", 100*float64(numDown)/float64(numAll), "%")
 		//}
 		// 判断是否下载过
+		p.Mutex.Lock()
 		if !p.Memo[imgId] {
 			p.Memo[imgId] = true
+			p.Mutex.Unlock()
 			numDown++
 			// 从池中申请一个协程，开启任务
 			p.GoroutinePool <- struct{}{}
@@ -122,7 +126,7 @@ func (p *Pixiv) CrawUrl() {
 				start := time.Now()
 				// 根据ID下载图片, isDown代表下载成功或者失败
 				isDown := p.downloadImg(detail)
-				// 如果下载成功则通知缓存通道向momes中添加已经下载图片的ID
+				// 如果下载成功则通知缓存通道向memos中添加已经下载图片的ID
 				// 然后通知用户图片下载成功以及用时
 				if isDown {
 					// 通知缓存队列

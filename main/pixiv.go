@@ -48,6 +48,7 @@ func main() {
 		Memo: memo,                               // 缓存，防止下载重复图片
 		Done: done,                               // 如果主动停止程序，依靠Done通知其他协程结束任务
 		CrawlStrategy: strategy.KeywordStrategy,
+		Mutex: &sync.Mutex{},
 	}
 	// 加载缓存，防止下载之前的重复图片
 	getOldImg(memo)
