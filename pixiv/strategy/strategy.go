@@ -93,7 +93,7 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 	for _, imgId := range strings.Split(imgIds, ",") {
 		for _, detail := range getRelevanceUrls(p, imgId, 100) {
 			mutex.Lock()
-			if !complete[detail.Id] && !p.Memo[imgId] {
+			if !complete[detail.Id] && !p.Memo[detail.Id] {
 				complete[detail.Id] = true
 				mutex.Unlock()
 				if atomic.LoadInt32(&p.IsCancel) == 0 {
@@ -109,8 +109,8 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 			go func(id string) {
 				for _, detail2 := range getRelevanceUrls(p, id, 100) {
 					mutex.Lock()
-					if !complete[detail.Id] && !p.Memo[imgId] {
-						complete[detail.Id] = true
+					if !complete[detail2.Id] && !p.Memo[detail2.Id] {
+						complete[detail2.Id] = true
 						mutex.Unlock()
 						if atomic.LoadInt32(&p.IsCancel) == 0 {
 							picDetail, flag := process(p, &detail2, true)
@@ -120,6 +120,21 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 						}
 					} else {
 						mutex.Unlock()
+					}
+					for _, detail3 := range getRelevanceUrls(p, id, 50) {
+						mutex.Lock()
+						if !complete[detail3.Id] && !p.Memo[detail3.Id] {
+							complete[detail3.Id] = true
+							mutex.Unlock()
+							if atomic.LoadInt32(&p.IsCancel) == 0 {
+								picDetail, flag := process(p, &detail3, true)
+								if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
+									p.PicChan <- picDetail
+								}
+							}
+						} else {
+							mutex.Unlock()
+						}
 					}
 				}
 				wait.Done()
