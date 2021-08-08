@@ -111,8 +111,8 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 				wait.Done()
 			}(detail.Id)
 		}
-		wait.Wait()
 	}
+	wait.Wait()
 }
 
 // 根据作者ID爬取其所有图片
