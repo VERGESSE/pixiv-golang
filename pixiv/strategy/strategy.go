@@ -91,7 +91,7 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 	mutex := p.Mutex
 	complete := make(map[string]bool)
 	for _, imgId := range strings.Split(imgIds, ",") {
-		for _, detail := range getRelevanceUrls(p, imgId, 100) {
+		for _, detail := range getRelevanceUrls(p, imgId, 100, 3) {
 			mutex.Lock()
 			if !complete[detail.Id] && !p.Memo[detail.Id] {
 				complete[detail.Id] = true
@@ -107,7 +107,7 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 			}
 			wait.Add(1)
 			go func(id string) {
-				for _, detail2 := range getRelevanceUrls(p, id, 100) {
+				for _, detail2 := range getRelevanceUrls(p, id, 100, 3) {
 					mutex.Lock()
 					if !complete[detail2.Id] && !p.Memo[detail2.Id] {
 						complete[detail2.Id] = true
@@ -121,7 +121,7 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 					} else {
 						mutex.Unlock()
 					}
-					for _, detail3 := range getRelevanceUrls(p, id, 50) {
+					for _, detail3 := range getRelevanceUrls(p, id, 50, 3) {
 						mutex.Lock()
 						if !complete[detail3.Id] && !p.Memo[detail3.Id] {
 							complete[detail3.Id] = true
@@ -150,7 +150,7 @@ func AuthorStrategy(p *pixiv.Pixiv) {
 }
 
 // 获取图片Id的相关图片
-func getRelevanceUrls(p *pixiv.Pixiv, imgId string, limit int) []pixiv.Illust {
+func getRelevanceUrls(p *pixiv.Pixiv, imgId string, limit int, tryTimes int) []pixiv.Illust {
 	var res []pixiv.Illust
 	originUrl := "https://www.pixiv.net/ajax/illust/" + imgId +
 		"/recommend/init?limit=" + strconv.Itoa(limit)
@@ -166,6 +166,10 @@ func getRelevanceUrls(p *pixiv.Pixiv, imgId string, limit int) []pixiv.Illust {
 	}
 	resp, err := p.Client.Do(request)
 	if err != nil {
+		log.Println(err)
+		if tryTimes > 0 {
+			return getRelevanceUrls(p, imgId, limit, tryTimes-1)
+		}
 		return nil
 	}
 	var details = &pixiv.UrlDetail2{}

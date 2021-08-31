@@ -22,11 +22,11 @@ func main() {
 
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	picChan := make(chan *pixiv.PicDetail, 200)
+	picChan := make(chan *pixiv.PicDetail, 50)
 	countdown := sync.WaitGroup{}
 	done := make(chan bool)
 	memo := make(map[string]bool)
-	dialer, _ := proxy.SOCKS5("tcp", "127.0.0.1:1080",
+	dialer, _ := proxy.SOCKS5("tcp", "127.0.0.1:7890",
 		nil, &net.Dialer {
 			Timeout: 30 * time.Second,
 			KeepAlive: 30 * time.Second,})
