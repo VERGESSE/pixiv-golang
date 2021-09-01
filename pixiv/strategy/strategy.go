@@ -166,10 +166,10 @@ func getRelevanceUrls(p *pixiv.Pixiv, imgId string, limit int, tryTimes int) []p
 	}
 	resp, err := p.Client.Do(request)
 	if err != nil {
-		log.Println(err)
 		if tryTimes > 0 {
 			return getRelevanceUrls(p, imgId, limit, tryTimes-1)
 		}
+		log.Println("相关图片爬取失败", err)
 		return nil
 	}
 	var details = &pixiv.UrlDetail2{}
