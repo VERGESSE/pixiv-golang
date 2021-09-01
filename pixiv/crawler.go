@@ -27,6 +27,7 @@ var Bookmark = [7]int{50, 100, 300, 500, 1000, 5000, 10000}
 type Pixiv struct {
 	GoroutinePool chan struct{}
 	PicChan       chan *PicDetail
+	RequestPool   chan struct{}
 	CountDown     *sync.WaitGroup
 	Memo          map[string]bool
 	Done          chan bool
@@ -144,6 +145,7 @@ func (p *Pixiv) CrawUrl() {
 	}
 	// 关闭线程池
 	close(p.GoroutinePool)
+	close(p.RequestPool)
 	// 等待任务全部完成,关闭缓存队列
 	p.CountDown.Wait()
 	close(cacheChan)
@@ -234,6 +236,14 @@ func (p *Pixiv) downloadImg(detail *PicDetail) bool {
 		return p.downloadImg(detail)
 	}
 	return true
+}
+
+// http请求 进行并发度控制
+func (p *Pixiv) DoRequest(req *http.Request) (*http.Response, error) {
+	p.RequestPool <- struct{}{}
+	response, e := p.Client.Do(req)
+	<-p.RequestPool
+	return response, e
 }
 
 // 向缓存文件写入新下载的文件

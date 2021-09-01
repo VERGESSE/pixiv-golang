@@ -39,7 +39,7 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 			URL:    nowUrl,
 			Header: *header,
 		}
-		resp, err := p.Client.Do(request)
+		resp, err := p.DoRequest(request)
 		if err != nil && retryTime < 10 {
 			log.Println(err)
 			retryTime++
@@ -164,7 +164,7 @@ func getRelevanceUrls(p *pixiv.Pixiv, imgId string, limit int, tryTimes int) []p
 		URL:    nowUrl,
 		Header: *header,
 	}
-	resp, err := p.Client.Do(request)
+	resp, err := p.DoRequest(request)
 	if err != nil {
 		if tryTimes > 0 {
 			return getRelevanceUrls(p, imgId, limit, tryTimes-1)
@@ -232,7 +232,16 @@ func process(p *pixiv.Pixiv, detail *pixiv.Illust, bookMark bool) (*pixiv.PicDet
 
 	if flag && bookMark {
 		// 如果需要计算点赞数则进行计算
-		resp, err := p.Client.Get("https://www.pixiv.net/artworks/" + detail.Id)
+		header := &http.Header{}
+		header.Add("user-agent", pixiv.GetRandomUserAgent())
+		header.Add("cookie", p.Cookie)
+		nowUrl, _ := url.Parse("https://www.pixiv.net/artworks/" + detail.Id)
+		request := &http.Request{
+			Method: "GET",
+			URL:    nowUrl,
+			Header: *header,
+		}
+		resp, err := p.DoRequest(request)
 		if err != nil {
 			return nil, false
 		}

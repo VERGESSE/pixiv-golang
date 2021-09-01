@@ -22,7 +22,6 @@ func main() {
 
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-	picChan := make(chan *pixiv.PicDetail, 50)
 	countdown := sync.WaitGroup{}
 	done := make(chan bool)
 	memo := make(map[string]bool)
@@ -40,13 +39,14 @@ func main() {
 	// 获取Cookie
 	cookie := getCookie()
 	p := &pixiv.Pixiv{
-		GoroutinePool: make(chan struct{}, 200),   // 设置线程数量
-		PicChan: picChan,						  // 存储图片id的通道
-		Client: client,                           // http请求代理客户端
+		GoroutinePool: make(chan struct{}, 50),    // 设置线程数量
+		PicChan: make(chan *pixiv.PicDetail, 200), // 存储图片id的通道
+		RequestPool: make(chan struct{}, 50),      // 通过DoRequest方法限制请求并发度
+		Client: client,                            // http请求代理客户端
 		Cookie: cookie,
-		CountDown: &countdown,                    // 控制程序平稳结束的栅栏
-		Memo: memo,                               // 缓存，防止下载重复图片
-		Done: done,                               // 如果主动停止程序，依靠Done通知其他协程结束任务
+		CountDown: &countdown,                     // 控制程序平稳结束的栅栏
+		Memo: memo,                                // 缓存，防止下载重复图片
+		Done: done,                                // 如果主动停止程序，依靠Done通知其他协程结束任务
 		CrawlStrategy: strategy.KeywordStrategy,
 		Mutex: &sync.Mutex{},
 	}
