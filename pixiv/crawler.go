@@ -141,6 +141,8 @@ func (p *Pixiv) CrawUrl() {
 				p.CountDown.Done()
 				<-p.GoroutinePool
 			}(pic)
+		} else {
+			p.Mutex.Unlock()
 		}
 	}
 	// 关闭线程池
