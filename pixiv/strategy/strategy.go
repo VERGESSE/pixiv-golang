@@ -18,9 +18,13 @@ import (
 // 根据输入关键字获取图片id
 func KeywordStrategy(p *pixiv.Pixiv) {
 	baseGroup, _ := url.QueryUnescape(p.KeyWord)
-	keyword := p.KeyWord +
-		"%20" + strconv.Itoa(getMinBookMark(p.Bookmarks)) +
-		url.QueryEscape("users入り")
+	keyword := p.KeyWord
+	if len(p.KeyWord) == 0 {
+		keyword = p.KeyWord +
+			"%20" + strconv.Itoa(getMinBookMark(p.Bookmarks)) +
+			url.QueryEscape("users入り")
+	}
+
 	wltHlt := "&wlt=1000&hlt=1000"
 	if strings.Contains(p.PicType, "s") {
 		wltHlt = ""
@@ -66,7 +70,7 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 		fmt.Println("第 ", i, "页待选 ", len(details.Body.Illust.Data), " 张")
 		num := 0
 		for _, detail := range details.Body.Illust.Data {
-			picDetail, flag := process(p, &detail, false)
+			picDetail, flag := process(p, &detail, true)
 			if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 				picDetail.Group = baseGroup + "/" + picDetail.Group
 				num++
@@ -256,6 +260,10 @@ func process(p *pixiv.Pixiv, detail *pixiv.Illust, bookMark bool) (*pixiv.PicDet
 			strings.Split(split[1], ",")[0])
 		if err != nil {
 			return nil, false
+		}
+		// 点赞数不符合
+		if detail.BookmarkData < p.Bookmarks {
+			return pic, false
 		}
 	}
 	return pic, flag

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"sync"
 )
 
@@ -21,11 +22,26 @@ var (
 
 func main() {
 
-	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/横屏")
-	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/竖屏")
-	handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/长图-方图")
-	handTask("H:/wallpaper/P站壁纸/精品小图，手机可用", "images/小图")
+	//handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/横屏")
+	//handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/竖屏")
+	//handTask("H:/wallpaper/P站壁纸/电脑壁纸，质量保证", "images/长图-方图")
+	//handTask("H:/wallpaper/P站壁纸/精品小图，手机可用", "images/小图")
 
+	srcDir := "E:/wallpaper/副屏"
+	disDir := "D:/pixiv-dwd/images/副屏"
+	file, _ := os.Open(srcDir)
+	infos, _ := file.Readdir(0)
+	for index, info := range infos {
+		if index < 13000 {
+			continue
+		}
+		waitGroup.Add(1)
+		serial := strconv.Itoa(index / 1000)
+		disDir0 := disDir + serial
+		os.MkdirAll(disDir0, 0644)
+		transferFile(path.Join(disDir0, info.Name()),
+			path.Join(srcDir, info.Name()))
+	}
 	// 等待转移结束
 	waitGroup.Wait()
 }
@@ -37,8 +53,8 @@ func handTask(dstDir, srcDir string) {
 	infos, _ := file.Readdir(0)
 	for _, info := range infos {
 		waitGroup.Add(1)
-		go transferFile(path.Join(dstDir, info.Name()),
-			path.Join(srcDir, info.Name()))
+		go transferFile(path.Join(srcDir, info.Name()),
+			path.Join(dstDir, info.Name()))
 	}
 }
 
@@ -56,7 +72,7 @@ func transferFile(dst, src string) {
 	srcFile.Close()
 	dstFile.Close()
 	// 删除原图片
-	os.Remove(src)
+	//os.Remove(src)
 
 	waitGroup.Done()
 	<-fileChan
