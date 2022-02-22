@@ -18,12 +18,9 @@ import (
 // 根据输入关键字获取图片id
 func KeywordStrategy(p *pixiv.Pixiv) {
 	baseGroup, _ := url.QueryUnescape(p.KeyWord)
-	keyword := p.KeyWord
-	if len(p.KeyWord) == 0 {
-		keyword = p.KeyWord +
-			"%20" + strconv.Itoa(getMinBookMark(p.Bookmarks)) +
-			url.QueryEscape("users入り")
-	}
+	keyword := p.KeyWord +
+		"%20" + strconv.Itoa(getMinBookMark(p.Bookmarks)) +
+		url.QueryEscape("users入り")
 
 	wltHlt := "&wlt=1000&hlt=1000"
 	if strings.Contains(p.PicType, "s") {
