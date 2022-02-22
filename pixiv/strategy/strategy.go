@@ -267,9 +267,9 @@ func process(p *pixiv.Pixiv, detail *pixiv.Illust, bookMark bool) (*pixiv.PicDet
 }
 
 func getMinBookMark(bookmark int) int {
-	for _, num := range pixiv.Bookmark {
-		if num >= bookmark {
-			return num
+	for index, num := range pixiv.Bookmark {
+		if num > bookmark {
+			return pixiv.Bookmark[index-1]
 		}
 	}
 	return pixiv.Bookmark[len(pixiv.Bookmark)-1]
