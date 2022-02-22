@@ -21,7 +21,7 @@ const (
 )
 
 // 收藏数可选项
-var Bookmark = [7]int{50, 100, 300, 500, 1000, 5000, 10000}
+var Bookmark = [8]int{0, 50, 100, 300, 500, 1000, 5000, 10000}
 
 // 爬虫结构体
 type Pixiv struct {

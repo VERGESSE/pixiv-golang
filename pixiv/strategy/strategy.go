@@ -66,14 +66,27 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 		retryTime = 0
 		fmt.Println("第 ", i, "页待选 ", len(details.Body.Illust.Data), " 张")
 		num := 0
+		// 每页解析是否爬取并行
+		countdown := sync.WaitGroup{}
 		for _, detail := range details.Body.Illust.Data {
-			picDetail, flag := process(p, &detail, true)
-			if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
-				picDetail.Group = baseGroup + "/" + picDetail.Group
-				num++
-				p.PicChan <- picDetail
+			// 不爬已经爬过的
+			if p.Memo[detail.Id] {
+				continue
 			}
+			// 正在执行任务计数
+			countdown.Add(1)
+			go func(detail pixiv.Illust) {
+				picDetail, flag := process(p, &detail, true)
+				if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
+					picDetail.Group = baseGroup + "/" + picDetail.Group
+					num++
+					p.PicChan <- picDetail
+				}
+				countdown.Done()
+			}(detail)
 		}
+		// 等待任务执行完成
+		countdown.Wait()
 		fmt.Println("第 ", i, "页筛选出 ", num, " 张")
 		if 60*i > total {
 			log.Println("关键字爬取搜索完成！")
@@ -205,7 +218,7 @@ func process(p *pixiv.Pixiv, detail *pixiv.Illust, bookMark bool) (*pixiv.PicDet
 	}
 	ratio := float32(max) / float32(min)
 	pic.Ratio = ratio
-	if max >= 1900 && min >= 1000 {
+	if max >= 1750 && min >= 900 {
 		if ratio < 2.15 && ratio > 1.4 {
 			if isWidth {
 				if strings.Contains(p.PicType, "w") {
