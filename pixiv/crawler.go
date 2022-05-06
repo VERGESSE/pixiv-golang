@@ -115,10 +115,9 @@ func (p *Pixiv) CrawUrl() {
 		//if numAll%100 == 0 {
 		//	fmt.Println("下载率(", len(p.Memo), "):", 100*float64(numDown)/float64(numAll), "%")
 		//}
-		rand.Seed(time.Now().UnixNano())
 		// 判断是否下载过all
 		p.Mutex.Lock()
-		if !p.Memo[imgId] || (p.RepetitionOdds > 0 && rand.Intn(100) < p.RepetitionOdds) {
+		if p.RepetitionDownload(imgId) {
 			p.Memo[imgId] = true
 			p.Mutex.Unlock()
 			numDown++
@@ -173,6 +172,12 @@ func (p *Pixiv) GetUrls() {
 			p.PicChan <- &PicDetail{}
 		}
 	}()
+}
+
+// 判断是否重复下载
+func (p *Pixiv) RepetitionDownload(imgId string) bool {
+	rand.Seed(time.Now().UnixNano())
+	return !p.Memo[imgId] || (p.RepetitionOdds > 0 && rand.Intn(100) < p.RepetitionOdds)
 }
 
 // 根据传入图片Id下载图片

@@ -70,7 +70,7 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 		countdown := sync.WaitGroup{}
 		for _, detail := range details.Body.Illust.Data {
 			// 不爬已经爬过的
-			if p.Memo[detail.Id] {
+			if p.RepetitionOdds == 0 && p.Memo[detail.Id] {
 				continue
 			}
 			// 正在执行任务计数
@@ -107,7 +107,7 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 	for _, imgId := range strings.Split(imgIds, ",") {
 		for _, detail := range getRelevanceUrls(p, imgId, 100, 3) {
 			mutex.Lock()
-			if !complete[detail.Id] && !p.Memo[detail.Id] {
+			if !complete[detail.Id] && (p.RepetitionOdds > 0 || !p.Memo[detail.Id]) {
 				complete[detail.Id] = true
 				mutex.Unlock()
 				if atomic.LoadInt32(&p.IsCancel) == 0 {
@@ -123,7 +123,7 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 			go func(id string) {
 				for _, detail2 := range getRelevanceUrls(p, id, 100, 3) {
 					mutex.Lock()
-					if !complete[detail2.Id] && !p.Memo[detail2.Id] {
+					if !complete[detail2.Id] && (p.RepetitionOdds > 0 || !p.Memo[detail2.Id]) {
 						complete[detail2.Id] = true
 						mutex.Unlock()
 						if atomic.LoadInt32(&p.IsCancel) == 0 {
@@ -137,7 +137,7 @@ func PicIdStrategy(p *pixiv.Pixiv) {
 					}
 					for _, detail3 := range getRelevanceUrls(p, id, 50, 3) {
 						mutex.Lock()
-						if !complete[detail3.Id] && !p.Memo[detail3.Id] {
+						if !complete[detail3.Id] && (p.RepetitionOdds > 0 || !p.Memo[detail3.Id]) {
 							complete[detail3.Id] = true
 							mutex.Unlock()
 							if atomic.LoadInt32(&p.IsCancel) == 0 {
