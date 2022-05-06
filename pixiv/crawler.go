@@ -41,6 +41,8 @@ type Pixiv struct {
 	Bookmarks int
 	// 爬取的图片类型 W: 横屏 H: 竖屏 S: 小屏 O:其他(默认WH)
 	PicType string
+	// 重复图片下载概率 0 - 100
+	RepetitionOdds int
 	// 负责向 PicChan 提供封装好的图片信息
 	CrawlStrategy func(p *Pixiv)
 	// 是否取消任务
@@ -113,9 +115,10 @@ func (p *Pixiv) CrawUrl() {
 		//if numAll%100 == 0 {
 		//	fmt.Println("下载率(", len(p.Memo), "):", 100*float64(numDown)/float64(numAll), "%")
 		//}
-		// 判断是否下载过
+		rand.Seed(time.Now().UnixNano())
+		// 判断是否下载过all
 		p.Mutex.Lock()
-		if !p.Memo[imgId] {
+		if !p.Memo[imgId] || (p.RepetitionOdds > 0 && rand.Intn(100) < p.RepetitionOdds) {
 			p.Memo[imgId] = true
 			p.Mutex.Unlock()
 			numDown++
@@ -151,6 +154,8 @@ func (p *Pixiv) CrawUrl() {
 	// 等待任务全部完成,关闭缓存队列
 	p.CountDown.Wait()
 	close(cacheChan)
+	// 整理memos文件
+	settleCache(p)
 	close(p.Done)
 }
 
@@ -256,6 +261,18 @@ func addCache() {
 		file.WriteString(imgId + " ")
 	}
 	file.Close()
+}
+
+// 整理缓存文件
+func settleCache(p *Pixiv) {
+	tmpFile, _ := os.OpenFile("images/tmp",
+		os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	for id := range p.Memo {
+		tmpFile.WriteString(id + " ")
+	}
+	tmpFile.Close()
+	os.Remove("images/memos")
+	os.Rename("images/tmp", "images/memos")
 }
 
 // 判断任务是否结束

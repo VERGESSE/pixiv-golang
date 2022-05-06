@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -26,9 +27,9 @@ func main() {
 	done := make(chan bool)
 	memo := make(map[string]bool)
 	dialer, _ := proxy.SOCKS5("tcp", "127.0.0.1:7890",
-		nil, &net.Dialer {
-			Timeout: 30 * time.Second,
-			KeepAlive: 30 * time.Second,})
+		nil, &net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second})
 	trans := &http.Transport{
 		Dial: dialer.Dial,
 	}
@@ -39,16 +40,16 @@ func main() {
 	// 获取Cookie
 	cookie := getCookie()
 	p := &pixiv.Pixiv{
-		GoroutinePool: make(chan struct{}, 50),    // 设置线程数量
-		PicChan: make(chan *pixiv.PicDetail, 200), // 存储图片id的通道
-		RequestPool: make(chan struct{}, 50),      // 通过DoRequest方法限制请求并发度
-		Client: client,                            // http请求代理客户端
-		Cookie: cookie,
-		CountDown: &countdown,                     // 控制程序平稳结束的栅栏
-		Memo: memo,                                // 缓存，防止下载重复图片
-		Done: done,                                // 如果主动停止程序，依靠Done通知其他协程结束任务
+		GoroutinePool: make(chan struct{}, 50),          // 设置线程数量
+		PicChan:       make(chan *pixiv.PicDetail, 200), // 存储图片id的通道
+		RequestPool:   make(chan struct{}, 50),          // 通过DoRequest方法限制请求并发度
+		Client:        client,                           // http请求代理客户端
+		Cookie:        cookie,
+		CountDown:     &countdown, // 控制程序平稳结束的栅栏
+		Memo:          memo,       // 缓存，防止下载重复图片
+		Done:          done,       // 如果主动停止程序，依靠Done通知其他协程结束任务
 		CrawlStrategy: strategy.KeywordStrategy,
-		Mutex: &sync.Mutex{},
+		Mutex:         &sync.Mutex{},
 	}
 	// 加载缓存，防止下载之前的重复图片
 	getOldImg(memo)
@@ -107,6 +108,7 @@ func initPixiv(p *pixiv.Pixiv, inputCtx string) bool {
 	p.KeyWord = keywords[0]
 	p.Bookmarks = 1000
 	p.PicType = "wh"
+	p.RepetitionOdds = 0
 	for _, keyword := range keywords[1:] {
 		switch keyword[:2] {
 		case "-b":
@@ -117,6 +119,9 @@ func initPixiv(p *pixiv.Pixiv, inputCtx string) bool {
 			p.Bookmarks = bookmarks
 		case "-t":
 			p.PicType = keyword[2:]
+		case "-r":
+			random, _ := strconv.Atoi(keyword[2:])
+			p.RepetitionOdds = int(math.Min(100, math.Max(0, float64(random))))
 		case "-s":
 			switch keyword[2:] {
 			case "keyword":
@@ -142,7 +147,7 @@ func initPixiv(p *pixiv.Pixiv, inputCtx string) bool {
 
 // 获取之前下载的缓存的函数, images/memos 缓存了曾经所有下载过的图片的id，以空格分隔
 func getOldImg(memo map[string]bool) {
-	os.MkdirAll("images",0644)
+	os.MkdirAll("images", 0644)
 	memoFile, _ := os.OpenFile("images/memos",
 		os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	reader := bufio.NewReader(memoFile)
@@ -151,7 +156,7 @@ func getOldImg(memo map[string]bool) {
 		if e != nil {
 			break
 		}
-		memo[strings.Split(s," ")[0]] = true
+		memo[strings.Split(s, " ")[0]] = true
 	}
 	memoFile.Close()
 }
@@ -164,4 +169,3 @@ func getCookie() string {
 	cookie := fmt.Sprintf("%s", line)
 	return cookie[:len(cookie)-1]
 }
-
