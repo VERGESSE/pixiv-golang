@@ -37,6 +37,7 @@ func main() {
 		Transport: trans,
 		Timeout:   time.Second * 30, //超时时间
 	}
+	nowTime := time.Now()
 	// 获取Cookie
 	cookie := getCookie()
 	p := &pixiv.Pixiv{
@@ -48,7 +49,9 @@ func main() {
 		CountDown:     &countdown, // 控制程序平稳结束的栅栏
 		Memo:          memo,       // 缓存，防止下载重复图片
 		Done:          done,       // 如果主动停止程序，依靠Done通知其他协程结束任务
-		CrawlStrategy: strategy.KeywordStrategy,
+		CrawlStrategy: strategy.KeywordStrategy0,
+		R18:           false, // 默认不爬R18
+		EndTime:       &nowTime,
 		Mutex:         &sync.Mutex{},
 	}
 	// 加载缓存，防止下载之前的重复图片
@@ -122,10 +125,16 @@ func initPixiv(p *pixiv.Pixiv, inputCtx string) bool {
 		case "-r":
 			random, _ := strconv.Atoi(keyword[2:])
 			p.RepetitionOdds = int(math.Min(100, math.Max(0, float64(random))))
+		case "-18":
+			p.R18 = true
+		case "-e":
+			endTimeStr := keyword[2:]
+			endTime, _ := time.ParseInLocation("2006-01-02", endTimeStr, time.Local)
+			p.EndTime = &endTime
 		case "-s":
 			switch keyword[2:] {
 			case "keyword":
-				p.CrawlStrategy = strategy.KeywordStrategy
+				p.CrawlStrategy = strategy.KeywordStrategy0
 				fmt.Println("即将根据搜索关键字爬取图片")
 			case "related":
 				p.CrawlStrategy = strategy.PicIdStrategy
@@ -137,7 +146,7 @@ func initPixiv(p *pixiv.Pixiv, inputCtx string) bool {
 				p.CrawlStrategy = strategy.AuthorStrategy
 				fmt.Println("即将根据作者ID爬取该作者的所有图片")
 			default:
-				p.CrawlStrategy = strategy.KeywordStrategy
+				p.CrawlStrategy = strategy.KeywordStrategy0
 				fmt.Println("即将根据搜索关键字爬取图片")
 			}
 		}

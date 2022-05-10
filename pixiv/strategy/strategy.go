@@ -98,6 +98,95 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 	}
 }
 
+// 根据输入关键字获取图片id 新版本
+func KeywordStrategy0(p *pixiv.Pixiv) {
+	nowTime := *p.EndTime
+	baseGroup, _ := url.QueryUnescape(p.KeyWord)
+	for nowTime.Year() > 2008 {
+		// 时间段
+		timeQuantum := nowTime.AddDate(0, -3, 0).Format("2006-01-02") + "至" +
+			nowTime.Format("2006-01-02")
+		// 获取当前时间段第一页
+		firstPage := doRequest(p, 1, 0, &nowTime)
+		total := firstPage.Body.Illust.Total
+		fmt.Println(timeQuantum+" 共 ", total, "张待选, ", total/60, " 页待爬取")
+		for i := 1; i <= total/60; i++ {
+			details := doRequest(p, i, 0, &nowTime)
+			num := 0
+			// 每页解析是否爬取并行
+			countdown := sync.WaitGroup{}
+			for _, detail := range details.Body.Illust.Data {
+				// 不爬已经爬过的
+				if p.RepetitionOdds == 0 && p.Memo[detail.Id] {
+					continue
+				}
+				// 正在执行任务计数
+				countdown.Add(1)
+				go func(detail pixiv.Illust) {
+					picDetail, flag := process(p, &detail, true)
+					if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
+						picDetail.Group = baseGroup + "/" + picDetail.Group
+						num++
+						p.PicChan <- picDetail
+					}
+					countdown.Done()
+				}(detail)
+			}
+			// 等待任务执行完成
+			countdown.Wait()
+			fmt.Println(timeQuantum+" 第 ", i, "页筛选出 ", num, " 张")
+		}
+		// 如果主动关闭，则退出
+		if atomic.LoadInt32(&p.IsCancel) != 0 {
+			break
+		}
+		// 当前时间递减三个月
+		nowTime = nowTime.AddDate(0, -3, 0)
+	}
+}
+
+func doRequest(p *pixiv.Pixiv, page int, retryTime int, endTime *time.Time) *pixiv.UrlDetail {
+	keyword := p.KeyWord +
+		"%20" + strconv.Itoa(getMinBookMark(p.Bookmarks)) +
+		url.QueryEscape("users入り")
+
+	wltHlt := "&wlt=1000&hlt=1000"
+	if strings.Contains(p.PicType, "s") {
+		wltHlt = ""
+	}
+	header := &http.Header{}
+	header.Add("user-agent", pixiv.GetRandomUserAgent())
+	header.Add("cookie", p.Cookie)
+	urlStr := "https://www.pixiv.net/ajax/search/illustrations/" +
+		keyword + "?word=" + keyword + "&order=date_d&mode=all" +
+		"&p=" + strconv.Itoa(page) + "&s_mode=s_tag&type=illust" + wltHlt
+	if endTime != nil {
+		urlStr += "&scd=" + endTime.AddDate(0, -3, 0).Format("2006-01-02") +
+			"&ecd=" + endTime.Format("2006-01-02")
+	}
+	nowUrl, _ := url.Parse(urlStr)
+	request := &http.Request{
+		Method: "GET",
+		URL:    nowUrl,
+		Header: *header,
+	}
+	var details = &pixiv.UrlDetail{}
+	resp, err := p.DoRequest(request)
+	// 失败重试10次
+	if err != nil && retryTime < 10 {
+		log.Println(err)
+		details = doRequest(p, page, retryTime+1, endTime)
+		time.Sleep(time.Millisecond * 500)
+	} else {
+		json.NewDecoder(resp.Body).Decode(details)
+		if details.Body.Illust.Total == 0 {
+			details = doRequest(p, page, retryTime+1, endTime)
+		}
+	}
+	resp.Body.Close()
+	return details
+}
+
 // 根据输入图片Id爬取相关图片
 func PicIdStrategy(p *pixiv.Pixiv) {
 	wait := sync.WaitGroup{}
@@ -204,6 +293,9 @@ func process(p *pixiv.Pixiv, detail *pixiv.Illust, bookMark bool) (*pixiv.PicDet
 	for _, tag := range detail.Tags {
 		if strings.Contains(strings.ToLower(tag), "r-18") {
 			pic.Group += "R-18/"
+			if !p.R18 {
+				return nil, false
+			}
 		}
 	}
 	flag := false

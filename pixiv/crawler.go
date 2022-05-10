@@ -43,6 +43,10 @@ type Pixiv struct {
 	PicType string
 	// 重复图片下载概率 0 - 100
 	RepetitionOdds int
+	// 是否爬取r18
+	R18 bool
+	// 爬取时间终点
+	EndTime *time.Time
 	// 负责向 PicChan 提供封装好的图片信息
 	CrawlStrategy func(p *Pixiv)
 	// 是否取消任务
