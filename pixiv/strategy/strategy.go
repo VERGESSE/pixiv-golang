@@ -112,9 +112,15 @@ func KeywordStrategy0(p *pixiv.Pixiv) {
 		log.Println(timeQuantum+" 共 ", total, "张待选, ", total/60, " 页待爬取")
 		// 每页解析是否爬取并行
 		countdown := sync.WaitGroup{}
+		var num int64 = 1
+		go func() {
+			for {
+				time.Sleep(time.Second * 3)
+				log.Println(timeQuantum+" 共筛选出 ", num, " 张")
+			}
+		}()
 		for i := 1; i <= total/60; i++ {
 			details := doRequest(p, i, 0, &nowTime)
-			//num := 0
 			for _, detail := range details.Body.Illust.Data {
 				// 不爬已经爬过的
 				if p.RepetitionOdds == 0 && p.Memo[detail.Id] {
@@ -126,13 +132,12 @@ func KeywordStrategy0(p *pixiv.Pixiv) {
 					picDetail, flag := process(p, &detail, true)
 					if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 						picDetail.Group = baseGroup + "/" + picDetail.Group
-						//num++
+						atomic.AddInt64(&num, 1)
 						p.PicChan <- picDetail
 					}
 					countdown.Done()
 				}(detail)
 			}
-			//log.Println(timeQuantum+" 第 ", i, "页筛选出 ", num, " 张")
 		}
 		// 如果主动关闭，则退出
 		if atomic.LoadInt32(&p.IsCancel) != 0 {
