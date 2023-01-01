@@ -235,6 +235,7 @@ func (p *Pixiv) downloadImg(detail *PicDetail) bool {
 	// 将图片下载的流直接对接到相应文件
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
+		log.Println(err)
 		file.Close()
 		os.Remove(bathPath + picName)
 		return false
@@ -242,11 +243,15 @@ func (p *Pixiv) downloadImg(detail *PicDetail) bool {
 	// 如果下载出现问题则删除文件
 	info, err := file.Stat()
 	if err != nil {
+		log.Println(err)
 		file.Close()
 		os.Remove(bathPath + picName)
 		return false
 	}
 	if info.Size() < 100 {
+		if strings.Contains(originalUrl, "png") {
+			log.Println("文件下载失败! ", endUrl)
+		}
 		file.Close()
 		os.Remove(bathPath + picName)
 		detail.Url = originalUrl[:len(originalUrl)-3] + "png"

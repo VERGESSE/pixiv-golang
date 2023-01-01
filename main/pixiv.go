@@ -31,14 +31,14 @@ func main() {
 	memo := make(map[string]bool)
 	dialer, _ := proxy.SOCKS5("tcp", "127.0.0.1:7890",
 		nil, &net.Dialer{
-			Timeout:   60 * time.Second,
-			KeepAlive: 60 * time.Second})
+			Timeout:   6000 * time.Second,
+			KeepAlive: 6000 * time.Second})
 	trans := &http.Transport{
 		Dial: dialer.Dial,
 	}
 	client := &http.Client{
 		Transport: trans,
-		Timeout:   time.Second * 60, //超时时间
+		Timeout:   time.Second * 6000, //超时时间
 	}
 	nowTime := time.Now()
 	// 获取Cookie
