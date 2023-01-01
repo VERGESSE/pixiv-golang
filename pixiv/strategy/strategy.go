@@ -53,18 +53,18 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 		json.NewDecoder(resp.Body).Decode(details)
 		if i == 1 {
 			total = details.Body.Illust.Total
-			fmt.Println("共 ", total, "张待选, ", total/60, " 页待爬取")
+			log.Println("共 ", total, "张待选, ", total/60, " 页待爬取")
 		}
 		resp.Body.Close()
 		if len(details.Body.Illust.Data) == 0 && retryTime < 10 {
 			retryTime++
-			fmt.Println("第 ", i, "页获取0条数据，正在重试"+strconv.Itoa(retryTime)+"...")
+			log.Println("第 ", i, "页获取0条数据，正在重试"+strconv.Itoa(retryTime)+"...")
 			i--
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
 		retryTime = 0
-		fmt.Println("第 ", i, "页待选 ", len(details.Body.Illust.Data), " 张")
+		log.Println("第 ", i, "页待选 ", len(details.Body.Illust.Data), " 张")
 		num := 0
 		// 每页解析是否爬取并行
 		countdown := sync.WaitGroup{}
@@ -87,7 +87,7 @@ func KeywordStrategy(p *pixiv.Pixiv) {
 		}
 		// 等待任务执行完成
 		countdown.Wait()
-		fmt.Println("第 ", i, "页筛选出 ", num, " 张")
+		log.Println("第 ", i, "页筛选出 ", num, " 张")
 		if 60*i > total {
 			log.Println("关键字爬取搜索完成！")
 			break
@@ -109,12 +109,12 @@ func KeywordStrategy0(p *pixiv.Pixiv) {
 		// 获取当前时间段第一页
 		firstPage := doRequest(p, 1, 0, &nowTime)
 		total := firstPage.Body.Illust.Total
-		fmt.Println(timeQuantum+" 共 ", total, "张待选, ", total/60, " 页待爬取")
+		log.Println(timeQuantum+" 共 ", total, "张待选, ", total/60, " 页待爬取")
+		// 每页解析是否爬取并行
+		countdown := sync.WaitGroup{}
 		for i := 1; i <= total/60; i++ {
 			details := doRequest(p, i, 0, &nowTime)
-			num := 0
-			// 每页解析是否爬取并行
-			countdown := sync.WaitGroup{}
+			//num := 0
 			for _, detail := range details.Body.Illust.Data {
 				// 不爬已经爬过的
 				if p.RepetitionOdds == 0 && p.Memo[detail.Id] {
@@ -126,20 +126,20 @@ func KeywordStrategy0(p *pixiv.Pixiv) {
 					picDetail, flag := process(p, &detail, true)
 					if flag && atomic.LoadInt32(&p.IsCancel) == 0 {
 						picDetail.Group = baseGroup + "/" + picDetail.Group
-						num++
+						//num++
 						p.PicChan <- picDetail
 					}
 					countdown.Done()
 				}(detail)
 			}
-			// 等待任务执行完成
-			countdown.Wait()
-			fmt.Println(timeQuantum+" 第 ", i, "页筛选出 ", num, " 张")
+			//log.Println(timeQuantum+" 第 ", i, "页筛选出 ", num, " 张")
 		}
 		// 如果主动关闭，则退出
 		if atomic.LoadInt32(&p.IsCancel) != 0 {
 			break
 		}
+		// 等待任务执行完成
+		countdown.Wait()
 		// 当前时间递减三个月
 		nowTime = nowTime.AddDate(0, -3, 0)
 	}

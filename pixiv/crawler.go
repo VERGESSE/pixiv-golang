@@ -1,7 +1,6 @@
 package pixiv
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"math/rand"
@@ -117,7 +116,7 @@ func (p *Pixiv) CrawUrl() {
 		imgId := pic.Id
 		numAll++
 		//if numAll%100 == 0 {
-		//	fmt.Println("下载率(", len(p.Memo), "):", 100*float64(numDown)/float64(numAll), "%")
+		//	log.Println("下载率(", len(p.Memo), "):", 100*float64(numDown)/float64(numAll), "%")
 		//}
 		// 判断是否下载过all
 		p.Mutex.Lock()
@@ -138,10 +137,12 @@ func (p *Pixiv) CrawUrl() {
 				if isDown {
 					// 通知缓存队列
 					cacheChan <- detail.Id
-					fmt.Println(index, ": ", detail.Id, " 爬取成功 !",
+					log.Println(index, ": ", detail.Id, " 爬取成功 !",
 						time.Since(start), " 输入 q 退出...")
 					// 使用原子递增保证线程安全
 					atomic.AddInt64(&index, 1)
+				} else {
+					log.Println(detail.Id, " 爬取失败 !")
 				}
 				// 正在运行任务数减一，并向池中归还协程
 				p.CountDown.Done()

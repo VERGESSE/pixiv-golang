@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net"
@@ -20,7 +21,9 @@ import (
 )
 
 func main() {
-
+	logFile, _ := os.OpenFile("./pixiv.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	multiWriter := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(multiWriter)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	countdown := sync.WaitGroup{}
@@ -28,20 +31,20 @@ func main() {
 	memo := make(map[string]bool)
 	dialer, _ := proxy.SOCKS5("tcp", "127.0.0.1:7890",
 		nil, &net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second})
+			Timeout:   60 * time.Second,
+			KeepAlive: 60 * time.Second})
 	trans := &http.Transport{
 		Dial: dialer.Dial,
 	}
 	client := &http.Client{
 		Transport: trans,
-		Timeout:   time.Second * 30, //超时时间
+		Timeout:   time.Second * 60, //超时时间
 	}
 	nowTime := time.Now()
 	// 获取Cookie
 	cookie := getCookie()
 	p := &pixiv.Pixiv{
-		GoroutinePool: make(chan struct{}, 50),          // 设置线程数量
+		GoroutinePool: make(chan struct{}, 30),          // 设置线程数量
 		PicChan:       make(chan *pixiv.PicDetail, 200), // 存储图片id的通道
 		RequestPool:   make(chan struct{}, 50),          // 通过DoRequest方法限制请求并发度
 		Client:        client,                           // http请求代理客户端
@@ -57,8 +60,8 @@ func main() {
 	// 加载缓存，防止下载之前的重复图片
 	getOldImg(memo)
 
-	fmt.Println("具体操作详见博客: https://www.vergessen.top/article/v/9942142761049736")
-	fmt.Println("默认输入关键字爬取关键字对应的收藏数大于1000的图片")
+	log.Println("具体操作详见博客: https://www.vergessen.top/article/v/9942142761049736")
+	log.Println("默认输入关键字爬取关键字对应的收藏数大于1000的图片")
 	input := bufio.NewScanner(os.Stdin)
 	var inputCtx string
 	if input.Scan() {
@@ -72,12 +75,20 @@ func main() {
 				if input.Scan() {
 					scan := strings.ToLower(input.Text())
 					if scan == "q" {
-						fmt.Println("停止进程中, 程序将在执行完已提交任务后退出...")
+						log.Println("停止进程中, 程序将在执行完已提交任务后退出...")
 						done <- true
 						p.PicChan <- &pixiv.PicDetail{}
 						break
 					}
 				}
+			}
+		}()
+
+		go func() {
+			for {
+				time.Sleep(time.Second * 3)
+				log.Println("爬取并发度: ", len(p.RequestPool), " & ",
+					"下载并发度: ", len(p.GoroutinePool))
 			}
 		}()
 
@@ -90,12 +101,12 @@ func main() {
 		// 等待已经启动的任务结束
 		countdown.Wait()
 	} else {
-		fmt.Println("输入参数有误！")
+		log.Println("输入参数有误！")
 	}
 
-	fmt.Println()
-	fmt.Println("进程已停止, 按回车退出程序...")
-	fmt.Println()
+	log.Println()
+	log.Println("进程已停止, 按回车退出程序...")
+	log.Println()
 	input.Scan()
 }
 
@@ -135,19 +146,19 @@ func initPixiv(p *pixiv.Pixiv, inputCtx string) bool {
 			switch keyword[2:] {
 			case "keyword":
 				p.CrawlStrategy = strategy.KeywordStrategy0
-				fmt.Println("即将根据搜索关键字爬取图片")
+				log.Println("即将根据搜索关键字爬取图片")
 			case "related":
 				p.CrawlStrategy = strategy.PicIdStrategy
-				fmt.Println("即将根据图片ID爬取相关图片")
+				log.Println("即将根据图片ID爬取相关图片")
 			case "author":
 				if _, err := strconv.Atoi(keywords[0]); err != nil {
 					return false
 				}
 				p.CrawlStrategy = strategy.AuthorStrategy
-				fmt.Println("即将根据作者ID爬取该作者的所有图片")
+				log.Println("即将根据作者ID爬取该作者的所有图片")
 			default:
 				p.CrawlStrategy = strategy.KeywordStrategy0
-				fmt.Println("即将根据搜索关键字爬取图片")
+				log.Println("即将根据搜索关键字爬取图片")
 			}
 		}
 	}
